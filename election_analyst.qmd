@@ -54,9 +54,10 @@ What is the mean, median, mode, and varience of contributions from individuals?
 --| connection: con
 --| code-fold: true
 
-DROP TABLE IF EXISTS mart.time_series_donations;
+CREATE SCHEMA if not exists results;
+DROP TABLE IF EXISTS results.time_series_donations;
 
-CREATE TABLE mart.time_series_donations AS
+CREATE TABLE results.time_series_donations AS
 SELECT
   donations.transaction_date,
   committee.committee_name,
@@ -97,7 +98,7 @@ ORDER BY
 --| echo: false
 --| max.print: -1
 
-select * from mart.time_series_donations;
+select * from results.time_series_donations;
  
 ```
 
@@ -107,7 +108,7 @@ select * from mart.time_series_donations;
 #| fig-alt: "Bar chart showing daily USD expenditures for Epps vs Behn "
 
 result <- dbGetQuery(con, "
-                PIVOT mart.time_series_donations
+                PIVOT results.time_series_donations
                 ON committee_name
                 USING first(amount)
                 ORDER by transaction_date desc
@@ -144,9 +145,9 @@ p
 --| connection: con
 --| code-fold: true
 
-DROP TABLE IF EXISTS mart.ranked_states;
+DROP TABLE IF EXISTS results.ranked_states;
 
-CREATE TABLE mart.ranked_states AS
+CREATE TABLE results.ranked_states AS
 WITH ranking AS (
   SELECT
     contributors.state,
@@ -197,7 +198,7 @@ ORDER BY
 --| echo: false
 --| max.print: -1
 --| fig-cap: "percentages of USD going to parties"
-select * from mart.ranked_states
+select * from results.ranked_states
 order by amountUSD desc
 limit 15;
 
@@ -210,7 +211,7 @@ limit 15;
 #| fig-alt: "Bar chart showing daily USD expenditures for Epps vs Behn "
 
 result <- dbGetQuery(con, "
-           from mart.ranked_states
+           from results.ranked_states
            where 
            amountUSD_rank <= 15
            order by state;
@@ -247,7 +248,8 @@ A SQL query that aggregates the amount of USD spent in the Epps vs Behn race by 
 ```{sql}
 --| connection: con
 --| code-fold: true
-
+DROP TABLE IF EXISTS results.pacs_for_aften_bahn;
+CREATE TABLE IF NOT EXISTS results.pacs_for_aften_bahn as
 SELECT
   donations.transaction_type,
   contributors.contributor_lender_name,
@@ -285,6 +287,16 @@ ORDER BY
 ```
 
 
+```{sql}
+--| connection: con
+--| echo: false
+--| max.print: -1
+--| fig-cap: "percentages of USD going to parties"
+select * from results.pacs_for_aften_bahn
+order by amount desc;
+
+```
+
 a simple table that looks at the most enthusiastic committee for bahn
 :::
 
@@ -298,6 +310,8 @@ a simple table that looks at the most enthusiastic committee for bahn
 --| code-fold: true
 --| max.print: -1
 
+DROP TABLE IF EXISTS results.committee_to_candidate;
+CREATE TABLE IF NOT EXISTS results.committee_to_candidate as
 WITH committee_dollars AS (
   SELECT
     committee.committee_party,
@@ -353,6 +367,15 @@ LIMIT 1
 
 ```
 
+```{sql}
+--| connection: con
+--| echo: false
+--| max.print: -1
+--| fig-cap: "percentages of USD going to parties"
+select * from results.committee_to_candidate;
+
+```
+
 Show the percentage of the total amount of usd sent from committee to candidate committee
 :::
 
@@ -363,6 +386,8 @@ Show the percentage of the total amount of usd sent from committee to candidate 
 --| code-fold: true
 --| max.print: -1
 
+DROP TABLE IF EXISTS results.individual_stats;
+CREATE TABLE IF NOT EXISTS results.individual_stats AS
 SELECT
   sum(donations.transaction_amount) AS dollars_sum,
   count(donations.transaction_amount) AS count,
@@ -390,6 +415,15 @@ WHERE
     AND '2025-12-02'::DATE
   )
 ORDER BY dollars_sum DESC;
+
+```
+
+```{sql}
+--| connection: con
+--| echo: false
+--| max.print: -1
+--| fig-cap: "percentages of USD going to parties"
+select * from results.individual_stats;
 
 ```
 
