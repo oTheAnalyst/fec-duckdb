@@ -123,6 +123,27 @@
           #    pkgs.writeShellScriptBin "load"
           #    ''pg_restore -h localhost -d bread -v --no-acl --no-owner ${self'.packages.sched_a}'';
           sendb = pkgs.writeShellScriptBin "sendb" "psql -h localhost -d bread";
+          dbbuild = pkgs.writeShellScriptBin "dbbuild" ''
+            FILE=./database.db
+            ls -l $FILE
+            echo $(pwd)
+            if [ -f "$FILE" ]; then
+                    echo "your database exists" |
+                            cowsay
+            else
+            echo "database building ... please wait 5 minutes" |
+            cowsay
+            nom build .#ingestme
+            cp result/database.db .
+            chmod u+w database.db
+            rm result/
+            duckdb database.db < ./sql/ddb_sql/intemediate/first_step.sql
+            duckdb database.db < ./sql/ddb_sql/intemediate/second_step.sql
+            duckdb database.db < ./sql/ddb_sql/mart/mart_s1.sql
+            duckdb database.db < ./sql/ddb_sql/mart/mart_s2.sql
+            duckdb database.db < ./sql/ddb_sql/mart/mart_s3.sql
+            fi
+          '';
         in
         {
           default = pkgs.mkShell {
@@ -135,6 +156,7 @@
               pgcli
               sqlfluff
               duckdb
+              dbbuild
               pkgs.texliveSmall
               (
                 (quarto.override {
@@ -156,24 +178,12 @@
             shellHook =
               #bash
               ''
-                FILE=./database.db
-                ls -l $FILE
-                echo $(pwd)
-                if [ -f "$FILE" ]; then
-                        echo "your database exists" |
-                                cowsay
-                else
-                echo "database building ... please wait 5 minutes" |
-                cowsay
-                nom build .#ingestme
-                cp result/database.db .
-                chmod u+w database.db
-                duckdb database.db < ./sql/ddb_sql/intemediate/first_step.sql
-                duckdb database.db < ./sql/ddb_sql/intemediate/second_step.sql
-                duckdb database.db < ./sql/ddb_sql/mart/mart_s1.sql
-                duckdb database.db < ./sql/ddb_sql/mart/mart_s2.sql
-                duckdb database.db < ./sql/ddb_sql/mart/mart_s3.sql
-                fi
+                echo "Welcome to the fec-duckdb repo! You have  a variety of commands available to you.
+                        - sendb : simply runs a sql script against your database database.db < sql_script.sql 
+                        - dbbuild : builds out a database from the data pipelines.
+                        - quarto render election_analyst.qmd --to html : simply creates an html documnet from a .qmd file " |
+                        cowsay
+
               '';
           };
 
