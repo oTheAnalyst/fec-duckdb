@@ -1,65 +1,31 @@
-# Fec-Duckdb: The Reproducible Database and Data Analysis Tool Kit
+# What is this?
 
-This is a repo for analyzing the Fec database, it is a fully modeled star schema on an olap database for extremely fast read queries. Nix caches the data so the database is reproducible to rebuild the database simply run:
+This is a dev shell for analysis of Federal Election Commmission data. 
 
-```bash
-rm database.db
+The major components of this repo include:
 
-nix-develop .
+- Reproducible duckdb database, for running performant analytical queries.
 
-```
+- Datapipeline that fetch data directly from the FEC, written in nix, which provides caching so database rebuilds won't download new data unless the data in FEC website has changed.
 
-Whenever you enter the shell, there is a check that runs to see if the database is present in the repositories directory. This allows for simple way to refresh the database.
+- Provides R, python, duckdb and versions of any corresponding package they use.
 
-### Requirements
-Nixpkgs or Nixos installation.
-
-30 gigs of free space.
+- Provides commands and programs to use in command line.
 
 
-### Install Nix for Linux via the recommended multi-user installation:
+#### commands
 
-Multi-user installation (recommended)
-```bash
-curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh -s -- --daemon
-```
+- **sendb**: alias for `duckdb database.db` for ergonomic use of standardin `sendb < ./sql/ddb_sql/analysis/adhoc.sql` instead of `duckdb database.db < ./sql/ddb_sql/analysis/adhoc.sql`.
 
-We recommend the multi-user install if you are on Linux running systemd, with SELinux disabled and you can authenticate with sudo.
+- **dbbuild**: builds out a database from cached data. data is downloaded and cached upon entering the devshell.
 
+- ``quarto render election_analyst.qmd``: creates an html documnet from a .qmd. 
 
-Single-user installation
-
-### Install Nix via the Single-user Installation:
-
-```bash
-curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh -s -- --no-daemon
-
-```
-
-Above command will perform a single-user installation of Nix, meaning that nix is owned by the invoking user. You should run this under your usual user account, not as root. The script will invoke sudo to create /nix if it doesn’t already exist.
-
-if you have macos or wsl follow the Instructions here:
-https://nixos.org/download/
-
-## To run this Project for the Shell and Database 
-
-To get just the the basic tools and the shell run: **(15 to 20 minute install)**
-```bash
-nix develop  github:oTheAnalyst/bakey-wakey
-
-```
-
-To get the full suit which contains quarto db connection and positron run: **(This can take up to hour)**
-
-```bash
-nix develop  github:oTheAnalyst/bakey-wakey#full-shell
-
-```
 
 ## (Recommended) For the full repository 
 
 
-This is the Partial Setup to just run the SQL based analysis: **(15 to 20 minute install)**
+This is the Partial Setup to just run the SQL based analysis: 
 ```nix
 git clone git@github.com:oTheAnalyst/bread-oven.git
 
@@ -69,7 +35,7 @@ nix develop .
 
 ```
 
-The Full Setup to with R and Python Included: **(This can take up to hour)**
+The Full Setup to with positron and the dependencies needed for running Included: **(This can take up)**
 ```nix
 git clone git@github.com:oTheAnalyst/bread-oven.git
 

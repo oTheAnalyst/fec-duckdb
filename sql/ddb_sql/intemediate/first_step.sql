@@ -8,146 +8,211 @@ data cleaning and organizing:
 - data is date not timestamp
 - https://www.fec.gov/campaign-finance-data/contributions-individuals-file-description/
 - monitary transaction are decimal(38,2)s
-*/
-create schema IF NOT EXISTS inter;
+*/---------------------
+CREATE schema IF NOT EXISTS inter;
+CREATE schema IF NOT EXISTS stg;
+
 SET memory_limit = '4GB';
-create or replace table inter.individual_contributions_s1 as
-select 
-        column00 as committee_identification,
-        column01 as amendment_indicator,
-        column02 as report_type,
-        column03 as primary_general_indicator,
-        column04 as image_number,
-        column05 as transaction_type,
-        column06 as entity_type,
-        lower(column07) as contributor_lender_name,
-        column08 as city,
-        column09 as state,
-        column10 as zip_code,
-        column11 as employer,
-        column12 as occupation,
-        strptime(column13, '%m%d%Y')::date as transaction_date,
-        column14::decimal(38,2) as transaction_amount,
-        column15 as other_id_number,
-        column16 as transaction_id,
-        column17::bigint as report_id,
-        column18 as memo_code,
-        column19 as memo_text,
-        column20::bigint as fec_record_number
-from stg.individual_contributions;
-
-create or replace table inter.commitees_to_canidates_s1 as
-SELECT 
-        column00 as committee_identification,
-        column01 as amendment_indicator,
-        column02 as report_type,
-        column03 as primary_general_indicator,
-        column04 as image_number,
-        column05 as transaction_type,
-        column06 as entity_type,
-        lower(column07) as name,
-        column08 as city,
-        column09 as state,
-        column10 as zip_code,
-        column11 as employer,
-        column12 as occupation,
-        strptime(column13, '%m%d%Y')::date as transaction_date,
-        column14::decimal(38,2) as transaction_amount,
-        column15 as other_id_number,
-        column16 as candidate_id,
-        column17 as transaction_id,
-        column18::int as file_number,
-        column19 as memo_code,
-        column20 as memo_text,
-        column21::bigint as fec_record_number
-FROM stg.committees_to_canidates_independent_expenditures;
-
-
-create or replace table inter.one_commitee_to_another as
-SELECT  
-        column00 as committee_identification,
-        column01 as amendment_indicator,
-        column02 as report_type,
-        column03 as primary_general_indicator,
-        column04 as image_number,
-        column05 as transaction_type,
-        column06 as entity_type,
-        lower(column07) as name,
-        column08 as city,
-        column09 as state,
-        column10 as zip_code,
-        column11 as employer,
-        column12 as occupation,
-        strptime(column13, '%m%d%Y')::date as transaction_date,
-        column14::decimal(38,2) as transaction_amount,
-        column15 as other_id_number,
-        column16 as transaction_id,
-        column17::int as file_number,
-        column18 as memo_cd,
-        column19 as memo_text,
-        column20::bigint as fec_record_number
-FROM stg.one_commitee_to_another;
-
-create or replace table inter.candidate_summary_s1 as
-select
-        column00 as candidate_id,
-        lower(column01) as candidate_name,
-        column02 as incumbent_challenger_status,
-        column03 as party_code,
-        column04 as party_affiliation,
-        column05::decimal(38,2) as total_receipts,
-        column06::decimal(38,2) as transfers_from_authorized_committees,
-        column07::decimal(38,2) as total_disbursements,
-        column08::decimal(38,2) as transfers_to_authorized_committees,
-        column09::decimal(38,2) as beginning_cash,
-        column10::decimal(38,2) as ending_cash,
-        column11::decimal(38,2) as contributions_from_candidate,
-        column12::decimal(38,2) as loans_from_candidate,
-        column13::decimal(38,2) as other_loans,
-        column14::decimal(38,2) as candidate_loan_repayment,
-        column15::decimal(38,2) as other_loan_repayments,
-        column16::decimal(38,2) as debts_owed_by,
-        column17::decimal(38,2) as total_individual_contributions,
-        column18 as candidate_state,
-        column19 as candidate_district,
-        column20 as special_election_status,
-        column21 as primary_election_status,
-        column22 as runoff_election_status,
-        column23 as general_election_status,
-        column24 as general_election_percentage,
-        column25 as contribution_from_other_politcal_committees,
-        column26 as contribution_from_party_committees,
-        column27 as coverage_end_date,
-        column28::decimal(38,2) as refunds_to_individuals,
-        column29::decimal(38,2) as refunds_to_committees
-FROM stg.candidate_summary;
-
-create or replace table inter.committee_master_s1 as
-select 
-        column00 as committee_identification,
-        column01 as committee_name,
-        column02 as treasurer_name,
-        column03 as street_one,
-        column04 as street_two,
-        column05 as city_or_town,
-        column06 as state,
-        column07 as zip_code,
-        column08 as committee_designation,
-        column09 as committee_type,
-        column10 as committee_party,
-        column11 as filing_frequency,
-        column12 as interest_group_category,
-        column13 as connected_organization_name,
-        column14 as candidate_id
-FROM stg.committee_master;
-
-
-create or replace table inter.candidate_commitee_linkage as
-SELECT    column0 as candidate_id
-        , column1::int as candidate_election_year
-        , column2::int as fec_election_year
-        , column3 as committee_id
-        , column4 as committee_type
-        , column5 as committee_design
-        , column6::int as linkg_age
-FROM stg.candidate_commitee_linkage;
+CREATE
+OR REPLACE TABLE inter.individual_contributions_s1 AS SELECT
+  column00 AS committee_identification,
+  column01 AS amendment_indicator,
+  column02 AS report_type,
+  column03 AS primary_general_indicator,
+  column04 AS image_number,
+  column05 AS transaction_type,
+  column06 AS entity_type,
+  LOWER(column07) AS contributor_lender_name,
+  column08 AS city,
+  column09 AS state,
+  column10 AS zip_code,
+  column11 AS employer,
+  column12 AS occupation,
+  strptime(
+    column13,
+    '%m%d%Y'
+  ) ::DATE AS transaction_date,
+  column14 ::DECIMAL(
+    38,
+    2
+  ) AS transaction_amount,
+  column15 AS other_id_number,
+  column16 AS transaction_id,
+  column17 ::BIGINT AS report_id,
+  column18 AS memo_code,
+  column19 AS memo_text,
+  column20 ::BIGINT AS fec_record_number
+FROM
+  stg.individual_contributions;
+CREATE
+OR REPLACE TABLE inter.commitees_to_canidates_s1 AS SELECT
+  column00 AS committee_identification,
+  column01 AS amendment_indicator,
+  column02 AS report_type,
+  column03 AS primary_general_indicator,
+  column04 AS image_number,
+  column05 AS transaction_type,
+  column06 AS entity_type,
+  LOWER(column07) AS name,
+  column08 AS city,
+  column09 AS state,
+  column10 AS zip_code,
+  column11 AS employer,
+  column12 AS occupation,
+  strptime(
+    column13,
+    '%m%d%Y'
+  ) ::DATE AS transaction_date,
+  column14 ::DECIMAL(
+    38,
+    2
+  ) AS transaction_amount,
+  column15 AS other_id_number,
+  column16 AS candidate_id,
+  column17 AS transaction_id,
+  column18 ::INT AS file_number,
+  column19 AS memo_code,
+  column20 AS memo_text,
+  column21 ::BIGINT AS fec_record_number
+FROM
+  stg.committees_to_canidates_independent_expenditures;
+CREATE
+OR REPLACE TABLE inter.one_commitee_to_another AS SELECT
+  column00 AS committee_identification,
+  column01 AS amendment_indicator,
+  column02 AS report_type,
+  column03 AS primary_general_indicator,
+  column04 AS image_number,
+  column05 AS transaction_type,
+  column06 AS entity_type,
+  LOWER(column07) AS name,
+  column08 AS city,
+  column09 AS state,
+  column10 AS zip_code,
+  column11 AS employer,
+  column12 AS occupation,
+  strptime(
+    column13,
+    '%m%d%Y'
+  ) ::DATE AS transaction_date,
+  column14 ::DECIMAL(
+    38,
+    2
+  ) AS transaction_amount,
+  column15 AS other_id_number,
+  column16 AS transaction_id,
+  column17 ::INT AS file_number,
+  column18 AS memo_cd,
+  column19 AS memo_text,
+  column20 ::BIGINT AS fec_record_number
+FROM
+  stg.one_commitee_to_another;
+CREATE
+OR REPLACE TABLE inter.candidate_summary_s1 AS SELECT
+  column00 AS candidate_id,
+  LOWER(column01) AS candidate_name,
+  column02 AS incumbent_challenger_status,
+  column03 AS party_code,
+  column04 AS party_affiliation,
+  column05 ::DECIMAL(
+    38,
+    2
+  ) AS total_receipts,
+  column06 ::DECIMAL(
+    38,
+    2
+  ) AS transfers_from_authorized_committees,
+  column07 ::DECIMAL(
+    38,
+    2
+  ) AS total_disbursements,
+  column08 ::DECIMAL(
+    38,
+    2
+  ) AS transfers_to_authorized_committees,
+  column09 ::DECIMAL(
+    38,
+    2
+  ) AS beginning_cash,
+  column10 ::DECIMAL(
+    38,
+    2
+  ) AS ending_cash,
+  column11 ::DECIMAL(
+    38,
+    2
+  ) AS contributions_from_candidate,
+  column12 ::DECIMAL(
+    38,
+    2
+  ) AS loans_from_candidate,
+  column13 ::DECIMAL(
+    38,
+    2
+  ) AS other_loans,
+  column14 ::DECIMAL(
+    38,
+    2
+  ) AS candidate_loan_repayment,
+  column15 ::DECIMAL(
+    38,
+    2
+  ) AS other_loan_repayments,
+  column16 ::DECIMAL(
+    38,
+    2
+  ) AS debts_owed_by,
+  column17 ::DECIMAL(
+    38,
+    2
+  ) AS total_individual_contributions,
+  column18 AS candidate_state,
+  column19 AS candidate_district,
+  column20 AS special_election_status,
+  column21 AS primary_election_status,
+  column22 AS runoff_election_status,
+  column23 AS general_election_status,
+  column24 AS general_election_percentage,
+  column25 AS contribution_from_other_politcal_committees,
+  column26 AS contribution_from_party_committees,
+  column27 AS coverage_end_date,
+  column28 ::DECIMAL(
+    38,
+    2
+  ) AS refunds_to_individuals,
+  column29 ::DECIMAL(
+    38,
+    2
+  ) AS refunds_to_committees
+FROM
+  stg.candidate_summary;
+CREATE
+OR REPLACE TABLE inter.committee_master_s1 AS SELECT
+  column00 AS committee_identification,
+  column01 AS committee_name,
+  column02 AS treasurer_name,
+  column03 AS street_one,
+  column04 AS street_two,
+  column05 AS city_or_town,
+  column06 AS state,
+  column07 AS zip_code,
+  column08 AS committee_designation,
+  column09 AS committee_type,
+  column10 AS committee_party,
+  column11 AS filing_frequency,
+  column12 AS interest_group_category,
+  column13 AS connected_organization_name,
+  column14 AS candidate_id
+FROM
+  stg.committee_master;
+CREATE
+OR REPLACE TABLE inter.candidate_commitee_linkage AS SELECT
+  column0 AS candidate_id,
+  column1 ::INT AS candidate_election_year,
+  column2 ::INT AS fec_election_year,
+  column3 AS committee_id,
+  column4 AS committee_type,
+  column5 AS committee_design,
+  column6 ::INT AS linkg_age
+FROM
+  stg.candidate_commitee_linkage;
