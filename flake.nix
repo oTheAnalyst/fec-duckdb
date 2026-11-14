@@ -137,11 +137,11 @@
             cp result/database.db .
             chmod u+w database.db
             rm result/
-            duckdb database.db < ./sql/ddb_sql/intemediate/first_step.sql
-            duckdb database.db < ./sql/ddb_sql/intemediate/second_step.sql
-            duckdb database.db < ./sql/ddb_sql/mart/mart_s1.sql
-            duckdb database.db < ./sql/ddb_sql/mart/mart_s2.sql
-            duckdb database.db < ./sql/ddb_sql/mart/mart_s3.sql
+            duckdb database.db < ./sql/intemediate/first_step.sql
+            duckdb database.db < ./sql/intemediate/second_step.sql
+            duckdb database.db < ./sql/mart/mart_s1.sql
+            duckdb database.db < ./sql/mart/mart_s2.sql
+            duckdb database.db < ./sql/mart/mart_s3.sql
             fi
           '';
         in
