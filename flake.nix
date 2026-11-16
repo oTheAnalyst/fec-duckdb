@@ -74,26 +74,26 @@
                 mkdir -p $out
                 duckdb $out/database.db -c "
                 create schema stg;
-                create table stg.committee_master as select *
+                create view stg.committee_master as select *
                 from read_csv('${self.packages.${system}.cm26}/cm.txt',all_varchar=true,header=false,ignore_errors=true);
 
-                create table stg.candidate_summary as select *
+                create view stg.candidate_summary as select *
                 from read_csv('${
                   self.packages.${system}.weball26
                 }/weball26.txt',all_varchar=true,header=false,ignore_errors=true);
 
-                create table stg.one_commitee_to_another as select *
+                create view stg.one_commitee_to_another as select *
                 from read_csv('${self.packages.${system}.oth26}/itoth.txt',all_varchar=true,header=false,ignore_errors=true);
 
-                create table stg.individual_contributions as select *
+                create view stg.individual_contributions as select *
                 from read_csv('${indiv26}/itcont.txt',all_varchar=true,header=false,ignore_errors=true);
 
-                create table stg.committees_to_canidates_independent_expenditures as select *
+                create view stg.committees_to_canidates_independent_expenditures as select *
                 from read_csv('${
                   self.packages.${system}.pass226
                 }/itpas2.txt',all_varchar=true,header=false,ignore_errors=true);
 
-                create table stg.candidate_commitee_linkage as select *
+                create view stg.candidate_commitee_linkage as select *
                 from read_csv('${self.packages.${system}.ccl26}/ccl.txt',all_varchar=true,header=false,ignore_errors=true);
                 "
               '';
@@ -136,7 +136,7 @@
             nom build .#ingestme
             cp result/database.db .
             chmod u+w database.db
-            rm result/
+            rm -rf result/
             duckdb database.db < ./sql/intemediate/first_step.sql
             duckdb database.db < ./sql/intemediate/second_step.sql
             duckdb database.db < ./sql/mart/mart_s1.sql
