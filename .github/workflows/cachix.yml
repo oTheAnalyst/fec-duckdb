@@ -1,0 +1,153 @@
+---
+name: package cache
+on:
+  workflow_dispatch:
+jobs:
+  prepare-matrix:
+    name: Check Cache
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Filter uncached packages
+        id: set-matrix
+        run: |
+          set -euo pipefail
+
+          SYSTEMS=(
+            "aarch64-darwin macos-15"
+            "aarch64-linux ubuntu-24.04-arm"
+            "x86_64-linux ubuntu-latest"
+            "x86_64-darwin macos-15-intel"
+          )
+
+          MISSING=()
+          EVALUATED=0
+          for entry in "${SYSTEMS[@]}"; do
+            read -r SYSTEM RUNNER <<< "$entry"
+
+            if ! PACKAGES_JSON=$(nix eval --json ".#devShells.$SYSTEM.full-shell.nativeBuildInputs" \
+              --apply 'xs: map (x: let r = builtins.tryEval x.drvPath; in { name = x.name; drv = if r.success then r.value else null; }) xs'); then
+              echo "::warning::Skipping $SYSTEM: full-shell nativeBuildInputs failed to evaluate"
+              continue
+            fi
+            EVALUATED=$((EVALUATED + 1))
+
+            mapfile -t PACKAGES < <(jq -c '.[]' <<< "$PACKAGES_JSON")
+            for i in "${!PACKAGES[@]}"; do
+              NAME=$(jq -r '.name' <<< "${PACKAGES[$i]}")
+              DRV=$(jq -r '.drv // empty' <<< "${PACKAGES[$i]}")
+              if [ -z "$DRV" ]; then
+                echo "::warning::Skipping $NAME on $SYSTEM: unsupported or failed to evaluate"
+                continue
+              fi
+              if ! OUTPUTS=$(nix-store --query --outputs "$DRV"); then
+                echo "::error::Could not query outputs for derivation: $DRV" >&2
+                exit 1
+              fi
+              CACHED=true
+              while IFS= read -r out; do
+                HASH=$(basename "$out" | cut -d'-' -f1)
+                if ! curl -s -f -I "https://otheanalyst.cachix.org/$HASH.narinfo" >/dev/null; then
+                  CACHED=false
+                  break
+                fi
+              done <<< "$OUTPUTS"
+              if [ "$CACHED" = false ]; then
+                MISSING+=("$(jq -nc --argjson index "$i" --arg name "$NAME" --arg system "$SYSTEM" --arg runner "$RUNNER" '{index: $index, name: $name, system: $system, runner: $runner}')")
+              fi
+            done
+          done
+
+          if [ "$EVALUATED" -eq 0 ]; then
+            echo "::error::Could not evaluate full-shell for any system" >&2
+            exit 1
+          fi
+
+          if [ ${#MISSING[@]} -eq 0 ]; then
+            echo "All packages are cached."
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$(printf '%s\n' "${MISSING[@]}" | jq -s -c .)" >> "$GITHUB_OUTPUT"
+          fi
+  build-packages:
+    name: Build ${{ matrix.name }} (${{ matrix.system }})
+    needs: prepare-matrix
+    if: needs.prepare-matrix.outputs.matrix != '[]'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v17
+        with:
+          name: otheanalyst
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: true
+      - name: Build and push
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          SYSTEM: ${{ matrix.system }}
+          INDEX: ${{ matrix.index }}
+        run: |
+          set -o pipefail
+          DRV=$(nix eval --raw ".#devShells.$SYSTEM.full-shell.nativeBuildInputs" \
+            --apply "xs: (builtins.elemAt xs $INDEX).drvPath")
+          nix build "$DRV^*" --no-link --print-out-paths --print-build-logs | cachix push otheanalyst
+      - name: Record Build Status
+        if: always()
+        run: echo "${{ job.status }}" > "status-${{ matrix.system }}-${{ matrix.name }}.txt"
+      - name: Upload Build Status
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: status-${{ matrix.system }}-${{ matrix.name }}
+          path: status-${{ matrix.system }}-${{ matrix.name }}.txt
+          retention-days: 1
+  notify:
+    name: Notify Discord
+    needs: build-packages
+    if: always() && needs.build-packages.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Statuses
+        uses: actions/download-artifact@v8
+        with:
+          pattern: status-*
+          merge-multiple: true
+      - name: Create Summary
+        id: summary
+        run: |
+          echo "description<<EOF" >> "$GITHUB_OUTPUT"
+          for file in status-*.txt; do
+            [ -e "$file" ] || continue
+            PACKAGE="${file#status-}"
+            PACKAGE="${PACKAGE%.txt}"
+            if [ "$(cat "$file")" = "success" ]; then
+              echo "✅ $PACKAGE" >> "$GITHUB_OUTPUT"
+            else
+              echo "❌ $PACKAGE" >> "$GITHUB_OUTPUT"
+            fi
+          done
+          echo "EOF" >> "$GITHUB_OUTPUT"
+      - name: Notify Discord
+        uses: sarisia/actions-status-discord@v1.16.0
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          username: GitHub Workflow
+          avatar_url: ${{ secrets.AVATAR_URL }}
+          status: ${{ needs.build-packages.result }}
+          title: Build and cache packages
+          description: ${{ steps.summary.outputs.description }}
+          content: look at this shi ${{ secrets.DISCORD_USER}}
+          notimestamp: true

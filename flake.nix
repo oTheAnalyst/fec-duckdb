@@ -1,9 +1,20 @@
 {
-  description = "A reproducable database/datapipeline using duckdb";
+  description = "A reproduckable database/datapipeline using duckdb";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     nixpkgs-26_05.url = "github:nixos/nixpkgs/release-26.05";
+  };
+
+  nixConfig = {
+    trusted-substituters = [ "https://otheanalyst.cachix.org" ];
+    extra-trusted-public-keys = [
+      "otheanalyst.cachix.org-1:Gh1ZlKll9uimf4Q9zT8LitoXtw6dIlBLeCVR7edtEnI="
+    ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
   };
 
   outputs =
@@ -33,6 +44,19 @@
       forEachPkgs = f: lib.genAttrs systems (system: f (mkPkgs system) system);
     in
     {
+      apps = forEachPkgs (
+        pkgs: system: {
+          list-remote-packages = {
+            type = "app";
+            meta.description = "List packages that will be built remotely (to be used in a Github workflow)";
+            program =
+              (pkgs.writeShellScript "list-remotes-packages" ''
+                echo "${lib.trim (lib.concatLines self.devShells.${system}.full-shell.nativeBuildInputs)}"
+              '').outPath;
+          };
+        }
+
+      );
       packages = forEachPkgs (
         pkgs: system:
         let
@@ -138,7 +162,7 @@
             nom build .#ingestme
             cp result/database.db .
             chmod u+w database.db
-            rm -rf result/
+            rm -rf result
             duckdb database.db < ./sql/intemediate/first_step.sql
             duckdb database.db < ./sql/intemediate/second_step.sql
             duckdb database.db < ./sql/mart/mart_s1.sql

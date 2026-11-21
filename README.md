@@ -45,13 +45,13 @@ nix develop .#full-shell
 
 ```
 
-![quarto](./quarto.png)
+![quarto](./pics/quarto.png)
 
 The full-shell provides quarto and Rduckdb which lets you render the qmd file and view the HTML in panes that are side by side.
 
 
 ## The ERD
-![quarto](./ERD.png)
+![quarto](./pics/ERD.png)
 
  This database is built using a star schema on a type 1 SCD type.
 
