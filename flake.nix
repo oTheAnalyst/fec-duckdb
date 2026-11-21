@@ -46,9 +46,7 @@
             meta.description = "List packages that will be built remotely (to be used in a Github workflow)";
             program =
               (pkgs.writeShellScript "list-remotes-packages" ''
-                echo "${
-                  lib.trim (lib.concatLines (lib.attrNames self.devShells.${system}.full-shell.nativeBuildInputs))
-                }"
+                echo "${lib.trim (lib.concatLines self.devShells.${system}.full-shell.nativeBuildInputs)}"
               '').outPath;
           };
         }
@@ -186,14 +184,14 @@
                   extraPythonPackages = myPythonPackages;
                   extraRPackages = myRPackages;
                 }).overrideAttrs
-                  (oldAttrs: {
-                    # Remove this overrideAttrs patch when fixed.
-                    # See https://github.com/NixOS/nixpkgs/issues/519484#issuecomment-4667477454
-                    postPatch = (oldAttrs.postPatch or "") + ''
-                      substituteInPlace bin/quarto.js \
-                        --replace-fail "syntax-highlighting" "highlight-style"
-                    '';
-                  })
+                (oldAttrs: {
+                  # Remove this overrideAttrs patch when fixed.
+                  # See https://github.com/NixOS/nixpkgs/issues/519484#issuecomment-4667477454
+                  postPatch = (oldAttrs.postPatch or "") + ''
+                    substituteInPlace bin/quarto.js \
+                      --replace-fail "syntax-highlighting" "highlight-style"
+                  '';
+                })
               )
               (rWrapper.override { packages = myRPackages; })
               pythonEnv
