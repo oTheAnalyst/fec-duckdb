@@ -115,6 +115,8 @@
 
           myRPackages = with pkgs.rPackages; [
             reticulate
+            hrbrthemes
+            treemap
             DBI
             ggplot2
           ];
@@ -163,14 +165,14 @@
                   extraPythonPackages = myPythonPackages;
                   extraRPackages = myRPackages;
                 }).overrideAttrs
-                (oldAttrs: {
-                  # Remove this overrideAttrs patch when fixed.
-                  # See https://github.com/NixOS/nixpkgs/issues/519484#issuecomment-4667477454
-                  postPatch = (oldAttrs.postPatch or "") + ''
-                    substituteInPlace bin/quarto.js \
-                      --replace-fail "syntax-highlighting" "highlight-style"
-                  '';
-                })
+                  (oldAttrs: {
+                    # Remove this overrideAttrs patch when fixed.
+                    # See https://github.com/NixOS/nixpkgs/issues/519484#issuecomment-4667477454
+                    postPatch = (oldAttrs.postPatch or "") + ''
+                      substituteInPlace bin/quarto.js \
+                        --replace-fail "syntax-highlighting" "highlight-style"
+                    '';
+                  })
               )
               (rWrapper.override { packages = myRPackages; })
               pythonEnv
