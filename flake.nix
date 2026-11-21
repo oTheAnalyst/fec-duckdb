@@ -6,6 +6,12 @@
     nixpkgs-26_05.url = "github:nixos/nixpkgs/release-26.05";
   };
 
+  nixConfig.experimental-features = [
+    "pipe-operators"
+    "nix-command"
+    "flakes"
+  ];
+
   outputs =
     {
       self,
@@ -33,6 +39,21 @@
       forEachPkgs = f: lib.genAttrs systems (system: f (mkPkgs system) system);
     in
     {
+      apps = forEachPkgs (
+        pkgs: system: {
+          list-remote-packages = {
+            type = "app";
+            meta.description = "List packages that will be built remotely (to be used in a Github workflow)";
+            program =
+              (pkgs.writeShellScript "list-remotes-packages" ''
+                echo "${
+                  lib.trim (lib.concatLines (lib.attrNames self.devShells.${system}.full-shell.nativeBuildInputs))
+                }"
+              '').outPath;
+          };
+        }
+
+      );
       packages = forEachPkgs (
         pkgs: system:
         let
