@@ -21,13 +21,21 @@ The major components of this repo include:
 
 - ``quarto render election_analyst.qmd``: creates an html documnet from a .qmd. 
 
+## dependencies 
 
-## (Recommended) For the full repository 
+You need install nixpkgs for this to work.
+
+Add the following to `~/.config/nix/nix.conf` or `/etc/nix/nix.conf:`
+
+``experimental-features = nix-command flakes``
 
 
-This is the Partial Setup to just run the SQL based analysis: 
-```nix
-git clone git@github.com:oTheAnalyst/bread-oven.git
+## How to use.
+
+
+This is the git cloning method for accessing the full repository: 
+```bash
+git clone git@github.com:oTheAnalyst/fec-duckdb.git
 
 cd bread-oven
 
@@ -35,13 +43,12 @@ nix develop .
 
 ```
 
-The Full Setup to with positron and the dependencies needed for running Included: **(This can take up)**
-```nix
-git clone git@github.com:oTheAnalyst/bread-oven.git
 
-cd bread-oven
+The Pure Nix Method:
+```bash
 
-nix develop .#full-shell
+nix develop github:oTheAnalyst/fec-duckdb
+
 
 ```
 
@@ -71,10 +78,10 @@ The main directory of concern for user is the analysis folder, the rest is simpl
 │       ├── clipboard
 │       └── quarto-html
 │           └── tabsets
+├── pics
 └── sql
-    └── ddb_sql
-        ├── analysis << this contains the relevant files is usuage of the database
-        ├── intemediate
-        └── mart
+    ├── analysis
+    ├── intemediate
+    └── mart
 ```
 

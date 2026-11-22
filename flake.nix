@@ -68,6 +68,7 @@
         }
         // {
           dbbuild = pkgs.writeShellScriptBin "dbbuild_2026_fec" ''
+            ./update.sh
             FILE=./database.db
             ls -l $FILE
             echo $(pwd)
