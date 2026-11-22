@@ -8,15 +8,36 @@ format: html
 First, we load the required packages and prepare a small dataset in R.
 
 ```{r}
+library(DBI)
+library(ggplot2)
+library(reticulate)
+use_python(Sys.which("python3"), required = TRUE)
+```
+
+
+```{r}
 #| label: setup
 #| echo: false
 #| warning: false
-library(DBI)
-library(duckdb)
-library(ggplot2)
+duckdb <- import("duckdb")
 
-# Create an in-memory DuckDB and register a data frame
-con <- dbConnect(duckdb::duckdb("./database.db"))
+con <- duckdb$connect("database.db")
+knitr::knit_engines$set(sql = function(options) {
+  code <- paste(options$code, collapse = "\n")
+  out <- NULL
+  if (isTRUE(options$eval)) {
+    res <- con$sql(code) # NULL for CREATE/INSERT etc.
+    if (!is.null(res)) {
+      df <- res$df()
+      if (!is.null(options$output.var)) {
+        assign(options$output.var, df, envir = knitr::knit_global())
+      } else {
+        out <- paste(capture.output(print(df)), collapse = "\n")
+      }
+    }
+  }
+  knitr::engine_output(options, options$code, out)
+})
 ```
 
 ## The Analysis
@@ -102,27 +123,29 @@ select * from results.time_series_donations;
  
 ```
 
-```{r}
+```{r }
+#| label: usd-aggs 
 #| echo: false
 #| fig-cap: "Aggregate USD amount by week"
 #| fig-alt: "Bar chart showing daily USD expenditures for Epps vs Behn "
+result <- con$sql("
+  PIVOT results.time_series_donations
+  ON committee_name
+  USING first(amount)
+  ORDER BY transaction_date DESC")$df()
 
-result <- dbGetQuery(con, "
-                PIVOT results.time_series_donations
-                ON committee_name
-                USING first(amount)
-                ORDER by transaction_date desc
-")
-
-# Most basic bubble plot
 p <- ggplot(
   data = subset(result, !is.na(`MATT VAN EPPS FOR CONGRESS`)),
   aes(x = transaction_date)
 ) +
-  geom_line(aes(y = .data[['MATT VAN EPPS FOR CONGRESS']],
-                color = 'MATT VAN EPPS FOR CONGRESS')) +
-  geom_line(aes(y = .data[['UNRIGGED PAC']],
-                color = 'UNRIGGED PAC')) +
+  geom_line(aes(
+    y = .data[["MATT VAN EPPS FOR CONGRESS"]],
+    color = "MATT VAN EPPS FOR CONGRESS"
+  )) +
+  geom_line(aes(
+    y = .data[["UNRIGGED PAC"]],
+    color = "UNRIGGED PAC"
+  )) +
   labs(y = "Amount (USD)")
 p
 ```
@@ -209,31 +232,40 @@ limit 15;
 #| echo: false
 #| fig-cap: "Aggregate USD amount by State"
 #| fig-alt: "Bar chart showing daily USD expenditures for Epps vs Behn "
-
-result <- dbGetQuery(con, "
+result <- con$sql("
            from results.ranked_states
-           where 
+           where
            amountUSD_rank <= 15
            order by state;
-        ")
+        ")$df()
 
 # Most basic bubble plot
-ggplot(result, aes(fill=.data[['committee_name']],x=reorder(.data[['state']], -.data[['amountUSD']]), y=.data[['amountUSD']])) + 
+ggplot(result, aes(
+  fill = .data[["committee_name"]],
+  x = reorder(
+    .data[["state"]],
+    -.data[["amountUSD"]]
+  ),
+  y = .data[["amountUSD"]]
+)) +
   geom_bar(stat = "identity") +
   coord_flip()
-
 ```
 
 ```{r}
 #| echo: false
 #| fig-cap: "Aggregate donation count by State"
 #| fig-alt: "Bar chart showing daily USD donation count for Epps vs Behn "
-
-
-ggplot(result, aes(fill=.data[['committee_name']],x=reorder(.data[['state']], -.data[['donations_count']]), y=.data[['donations_count']])) + 
+ggplot(result, aes(
+  fill = .data[["committee_name"]],
+  x = reorder(
+    .data[["state"]],
+    -.data[["donations_count"]]
+  ),
+  y = .data[["donations_count"]]
+)) +
   geom_bar(stat = "identity") +
   coord_flip()
-
 ```
 
 
@@ -434,5 +466,5 @@ This talbe shows the  mean median and mode for individual donors to candidates c
 
 ```{r}
 #| echo: false
-dbDisconnect(con, shutdown = TRUE)
+reg.finalizer(environment(), function(e) con$close(), onexit = TRUE)
 ```

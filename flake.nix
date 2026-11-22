@@ -7,10 +7,6 @@
   };
 
   nixConfig = {
-    trusted-substituters = [ "https://otheanalyst.cachix.org" ];
-    extra-trusted-public-keys = [
-      "otheanalyst.cachix.org-1:Gh1ZlKll9uimf4Q9zT8LitoXtw6dIlBLeCVR7edtEnI="
-    ];
     experimental-features = [
       "nix-command"
       "flakes"
@@ -44,19 +40,6 @@
       forEachPkgs = f: lib.genAttrs systems (system: f (mkPkgs system) system);
     in
     {
-      apps = forEachPkgs (
-        pkgs: system: {
-          list-remote-packages = {
-            type = "app";
-            meta.description = "List packages that will be built remotely (to be used in a Github workflow)";
-            program =
-              (pkgs.writeShellScript "list-remotes-packages" ''
-                echo "${lib.trim (lib.concatLines self.devShells.${system}.full-shell.nativeBuildInputs)}"
-              '').outPath;
-          };
-        }
-
-      );
       packages = forEachPkgs (
         pkgs: system:
         let
@@ -68,10 +51,6 @@
               sha256 = value.hash;
             };
 
-          /*
-            indiv26
-            postFetch = "rm -f $out/by_date/itcont_2026_invalid_dates.txt";
-          */
           sourceData = builtins.fromJSON (builtins.readFile ./data.json);
 
           rawdata = builtins.mapAttrs helper (removeAttrs sourceData [ "indiv26" ]);
@@ -88,6 +67,28 @@
           inherit indiv26;
         }
         // {
+          dbbuild = pkgs.writeShellScriptBin "dbbuild_2026_fec" ''
+            FILE=./database.db
+            ls -l $FILE
+            echo $(pwd)
+            if [ -f "$FILE" ]; then
+                    echo "your database exists" |
+                            cowsay
+            else
+            echo "database building ... please wait 5 minutes" |
+            cowsay
+            nom build .#ingestme
+            cp result/database.db .
+            chmod u+w database.db
+            rm -rf result
+            duckdb database.db < ./sql/intemediate/first_step.sql
+            duckdb database.db < ./sql/intemediate/second_step.sql
+            duckdb database.db < ./sql/mart/mart_s1.sql
+            duckdb database.db < ./sql/mart/mart_s2.sql
+            duckdb database.db < ./sql/mart/mart_s3.sql
+            fi
+          '';
+
           ingestme =
             pkgs.runCommand "ingestme"
               {
@@ -131,6 +132,7 @@
           myPythonPackages =
             ps: with ps; [
               numpy
+              duckdb
               pandas
               keyring
             ];
@@ -149,40 +151,19 @@
           #    pkgs.writeShellScriptBin "load"
           #    ''pg_restore -h localhost -d bread -v --no-acl --no-owner ${self'.packages.sched_a}'';
           sendb = pkgs.writeShellScriptBin "sendb" "psql -h localhost -d bread";
-          dbbuild = pkgs.writeShellScriptBin "dbbuild" ''
-            FILE=./database.db
-            ls -l $FILE
-            echo $(pwd)
-            if [ -f "$FILE" ]; then
-                    echo "your database exists" |
-                            cowsay
-            else
-            echo "database building ... please wait 5 minutes" |
-            cowsay
-            nom build .#ingestme
-            cp result/database.db .
-            chmod u+w database.db
-            rm -rf result
-            duckdb database.db < ./sql/intemediate/first_step.sql
-            duckdb database.db < ./sql/intemediate/second_step.sql
-            duckdb database.db < ./sql/mart/mart_s1.sql
-            duckdb database.db < ./sql/mart/mart_s2.sql
-            duckdb database.db < ./sql/mart/mart_s3.sql
-            fi
-          '';
         in
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
               # Add the process-compose app in the devShell
               jq
+              self.packages.${system}.dbbuild
               sendb
               nix-output-monitor
               cowsay
               pgcli
               sqlfluff
               duckdb
-              dbbuild
               pkgs.texliveSmall
               (
                 (quarto.override {
@@ -206,21 +187,11 @@
               ''
                 echo "Welcome to the fec-duckdb repo! You have  a variety of commands available to you.
                         - sendb : simply runs a sql script against your database database.db < sql_script.sql 
-                        - dbbuild : builds out a database from the data pipelines.
+                        - dbbuild_2026_fec : builds out a database from the data pipelines.
                         - *quarto render election_analyst.qmd* : creates an html documnet from a .qmd file " |
                         cowsay
 
               '';
-          };
-
-          full-shell = pkgs.mkShell {
-            packages = with pkgs; [
-              positron-bin
-              rPackages.duckdb
-            ];
-            inputsFrom = with self.devShells.${system}; [
-              default
-            ];
           };
         }
       );
